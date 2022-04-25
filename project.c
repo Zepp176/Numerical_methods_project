@@ -5,7 +5,7 @@ int main(int argc, char *argv[]){
 
     int resolution = atoi(argv[1]);
     double Re = (double) atoi(argv[2]);
-    int nIt = 10;
+    int nIt = 1;
 
     // initialization of the program
     PetscInitialize(&argc, &argv, 0, 0);
@@ -21,6 +21,9 @@ int main(int argc, char *argv[]){
         compute_star(sdata);
         set_boundary(sdata);
         switch_n(sdata);
+        poisson_solver(pdata, sdata);
+
+        update_pressure(sdata);
     }
 
     write_fields(sdata, "data/file.txt");

@@ -36,5 +36,6 @@ void set_boundary(Sim_data *data);
 void compute_star(Sim_data *data);
 void switch_n(Sim_data *data);
 double divergence(Sim_data *data, int i, int j);
+void update_pressure(Sim_data *data);
 
 #endif

@@ -289,3 +289,14 @@ double divergence(Sim_data *data, int i, int j) {
     double h = data->h;
     return ( get_u(data, 1, i+0.5, j) - get_u(data, 1, i-0.5, j) + get_v(data, 1, i, j+0.5) - get_v(data, 1, i, j-0.5) ) / h;
 }
+
+void update_pressure(Sim_data *data) {
+    int M = data->M;
+    int N = data->N;
+    double *P = data->P;
+    double *phi = data->phi;
+
+    for (int i = 0; i < M*N; i++) {
+        P[i] += phi[i];
+    }
+}
