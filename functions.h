@@ -10,6 +10,7 @@ typedef struct {
     double *u_star;
     double *v_star;
     double *P;
+    double *phi;
 
     int M;
     int N;
@@ -32,5 +33,8 @@ void init_sim_data(Sim_data *data, int res, double Re);
 void free_sim_data(Sim_data *data);
 void write_fields(Sim_data *data, char *filename);
 void set_boundary(Sim_data *data);
+void compute_star(Sim_data *data);
+void switch_n(Sim_data *data);
+double divergence(Sim_data *data, int i, int j);
 
 #endif

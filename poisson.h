@@ -5,6 +5,7 @@
 
 #include <petsc.h>
 #include <petscsys.h>
+#include "functions.h"
 
 //Structure storing petsc vectors
 
@@ -18,7 +19,8 @@ typedef struct {
 } Poisson_data;
 
 PetscErrorCode initialize_poisson_solver(Poisson_data* data, int resolution);
-void poisson_solver(Poisson_data *data, int resolution);
+void poisson_solver(Poisson_data *pdata, Sim_data *sdata);
 void free_poisson_solver(Poisson_data* data);
+void computeRHS(double *rhs, Sim_data *data);
 
 #endif

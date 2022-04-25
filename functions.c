@@ -141,6 +141,7 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->u_pre  = calloc((N+2)*(M+1), sizeof(double)); // u_n
     data->v_pre  = calloc((N+1)*(M+2), sizeof(double));
     data->P      = calloc(N*M, sizeof(double));
+    data->phi    = calloc(N*M, sizeof(double));
 }
 
 void free_sim_data(Sim_data *data) {
@@ -151,6 +152,7 @@ void free_sim_data(Sim_data *data) {
     free(data->u_star);
     free(data->v_star);
     free(data->P);
+    free(data->phi);
 }
 
 void write_fields(Sim_data *data, char *filename) {
@@ -200,8 +202,8 @@ void set_boundary(Sim_data *data) {
 
     // Lateral boundaries
     for (int i = 1; i < M+1; i++) {
-        u_star[(N+2)*i]       = u[(N+2)*i + 1]; // ghost points : no vorticity
-        u_star[(N+2)*i + N+1] = u[(N+2)*i + N];
+        u_star[(N+2)*i]       = u_star[(N+2)*i + 1]; // ghost points : no vorticity
+        u_star[(N+2)*i + N+1] = u_star[(N+2)*i + N];
         v_star[(N+1)*i]     = 0.0; // no tangential velocity
         v_star[(N+1)*i + N] = 0.0;
     }
@@ -220,4 +222,70 @@ void set_boundary(Sim_data *data) {
         vort_m = get_v(data, 0, M, j+0.5) - get_v(data, 0, M-1, j+0.5) + get_u(data, 0, M-0.5, j) - get_u(data, 0, M-0.5, j+1);
         v_star[idx] = (1 - dt/h)*vort_p + dt/h * vort_m - get_u(data, 1, M+0.5, j) + get_u(data, 1, M+0.5, j+1) + get_v(data, 1, M, j+0.5);
     }
+}
+
+void compute_star(Sim_data *data) {
+    int M = data->M;
+    int N = data->N;
+    double dt = data->dt;
+    double nu = data->nu;
+    double *u_star = data->u_star;
+    double *v_star = data->v_star;
+    double *u = data->u;
+    double *v = data->v;
+
+    // u star
+    for (int i = 1; i < M; i++) {
+        for (int j = 1; j < N+1; j++) {
+            u_star[i*(N+2) + j] = u[i*(N+2) + j];
+            u_star[i*(N+2) + j] += -dt / 2.0 * (3.0 * get_a(data, 0, i+0.5, j) - get_a(data, -1, i+0.5, j));
+            u_star[i*(N+2) + j] += -get_grad_P(data, i+0.5, j);
+            u_star[i*(N+2) + j] += nu*get_laplacian(data, i+0.5, j);
+        }
+    }
+
+    // v star
+    for (int i = 1; i < M; i++) {
+        for (int j = 1; j < N+1; j++) {
+            v_star[i*(N+1) + j] = v[i*(N+1) + j];
+            v_star[i*(N+1) + j] += -dt / 2.0 * (3.0 * get_b(data, 0, i, j+0.5) - get_b(data, -1, i, j+0.5));
+            v_star[i*(N+1) + j] += -get_grad_P(data, i, j+0.5);
+            v_star[i*(N+1) + j] += nu*get_laplacian(data, i, j+0.5);
+        }
+    }
+}
+
+void switch_n(Sim_data *data) {
+    int M = data->M;
+    int N = data->N;
+    double *u = data->u;
+    double *v = data->v;
+    double *u_pre = data->u_pre;
+    double *v_pre = data->v_pre;
+
+    for (int i = 0; i < (N+2)*(M+1); i++) {
+        u_pre[i] = u[i];
+    }
+    for (int i = 0; i < (N+1)*(M+2); i++) {
+        v_pre[i] = v[i];
+    }
+
+
+
+
+    // DELETE
+
+    double *u_star = data->u_star;
+    double *v_star = data->v_star;
+    for (int i = 0; i < (N+2)*(M+1); i++) {
+        u[i] = u_star[i];
+    }
+    for (int i = 0; i < (N+1)*(M+2); i++) {
+        v[i] = v_star[i];
+    }
+}
+
+double divergence(Sim_data *data, int i, int j) {
+    double h = data->h;
+    return ( get_u(data, 1, i+0.5, j) - get_u(data, 1, i-0.5, j) + get_v(data, 1, i, j+0.5) - get_v(data, 1, i, j-0.5) ) / h;
 }

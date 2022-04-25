@@ -1,60 +1,24 @@
 #include <mpi.h>
 #include <math.h>
 #include "poisson.h"
+#include "functions.h"
 
 /*Modification to do :*/
 /*    -Impose zero mass flow here by changing value of U_star*/
 /*    -Fill vector rhs*/
-void computeRHS(double *rhs, int resolution) {
+void computeRHS(double *rhs, Sim_data *data) {
 
-    int N = 5*resolution;
-    int M = 15*resolution;
-    double H = 1.0;
-    double h = H/resolution;
-    double f = 0.0;
-    //double g = 1.0;
-
-    for (int i = 0; i < N*M; i++) {
-        f = (0.5 + i - M/2.0)/M;
-        rhs[i] = h*h*f;
-    }
-
-    // Neumann à l'extérieur
-    for (int i = 0; i < M; i++) {
-        // upper boundary
-        rhs[N-1 + N*i] += 0.0;
-        // lower boundary
-        rhs[N*i] += 0.0;
-    }
-    for (int j = 0; j < N; j++) {
-        // left boundary
-        rhs[j] += 0.0;
-        // right boundary
-        rhs[j + (M-1)*N] += 0.0;
-    }
-
-    // Autour de l'objet
-    int i_start = 3*resolution;
-    int i_to    = 8*resolution;
-    int j_start = 2*resolution;
-    int j_to    = 3*resolution;
+    int N = data->N;
+    int M = data->M;
+    double h = data->h;
+    double dt = data->dt;
     int idx;
 
-    for (int i = i_start; i < i_to; i++) {
-        // lower side
-        idx = j_start-1 + i*N;
-        rhs[idx] += 0.0;
-        // upper side
-        idx = j_to + i*N;
-        rhs[idx] += 0.0;
-    }
-    for (int j = j_start; j < j_to; j++) {
-        // left side
-        idx = j + (i_start-1)*N;
-        rhs[idx] += 0.0;
-        // right side
-        idx = j + i_to*N;
-        rhs[idx] += 0.0;
+    for (int i = 1; i < M+1; i++) {
+        for (int j = 1; j < N+1; j++) {
+            idx = (i-1)*N + j-1;
+            rhs[idx] = h*h * divergence(data, i, j) / dt;
+        }
     }
 }
 
@@ -63,21 +27,21 @@ void computeRHS(double *rhs, int resolution) {
 /*Modification to do :*/
 /*    - Change the call to computeRHS as you have to modify its prototype too*/
 /*    - Copy solution of the equation into your vector PHI*/
-void poisson_solver(Poisson_data *data, int resolution) {
+void poisson_solver(Poisson_data *pdata, Sim_data *sdata) {
 
     /* Solve the linear system Ax = b for a 2-D poisson equation on a structured grid */
     int its;
     PetscInt rowStart, rowEnd;
     PetscScalar *rhs, *sol;
 
-    KSP sles = data->sles;
-    Vec b = data->b;
-    Vec x = data->x;
+    KSP sles = pdata->sles;
+    Vec b = pdata->b;
+    Vec x = pdata->x;
 
     /* Fill the right-hand-side vector : b */
     VecGetOwnershipRange(b, &rowStart, &rowEnd);
     VecGetArray(b, &rhs);
-    computeRHS(rhs, resolution); /*MODIFY THE PROTOTYPE HERE*/
+    computeRHS(rhs, sdata); /*MODIFY THE PROTOTYPE HERE*/
     VecRestoreArray(b, &rhs);
 
 
@@ -89,8 +53,8 @@ void poisson_solver(Poisson_data *data, int resolution) {
     VecGetArray(x, &sol);
 
     int r;
-    for(r=rowStart; r<rowEnd; r++){
-        /*YOUR VECTOR PHI[...]*/ // = sol[r];
+    for (r = rowStart; r < rowEnd; r++){
+        sdata->phi[r] = sol[r];
     }
 
     VecRestoreArray(x, &sol);
