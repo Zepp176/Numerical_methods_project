@@ -30,17 +30,11 @@ for i in range(M+1):
     for j in range(N+2):
         field[j, i] = u[j+i*(N+2)]
 
-print(len(x), len(x[0]))
-print(len(y), len(y[0]))
-print(len(field), len(field[0]))
-
 plt.figure(figsize=(7,5))
 plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
 plt.axis('equal')
 plt.colorbar()
 plt.show()
-
-
 
 
 
@@ -53,12 +47,9 @@ for i in range(M):
     for j in range(N):
         field[j, i] = P[j+i*N]
 
-print(len(x), len(x[0]))
-print(len(y), len(y[0]))
-print(len(field), len(field[0]))
-
 plt.figure(figsize=(7,5))
 plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
 plt.axis('equal')
 plt.colorbar()
+plt.title("Pressure")
 plt.show()

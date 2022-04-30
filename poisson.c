@@ -10,14 +10,12 @@ void computeRHS(double *rhs, Sim_data *data) {
 
     int N = data->N;
     int M = data->M;
-    double h = data->h;
-    double dt = data->dt;
     int idx;
 
     for (int i = 1; i < M+1; i++) {
         for (int j = 1; j < N+1; j++) {
             idx = (i-1)*N + j-1;
-            rhs[idx] = h*h * divergence(data, i, j) / dt;
+            rhs[idx] = divergence(data, i, j);
         }
     }
 
@@ -68,7 +66,7 @@ void poisson_solver(Poisson_data *pdata, Sim_data *sdata) {
 /*More than probably, you should need to add arguments to the prototype ... .*/
 /*Modification to do in this function : */
 /*   -Insert the correct factor in matrix A*/
-void computeLaplacianMatrix(Mat A, int resolution) {
+void computeLaplacianMatrix(Mat A, int resolution, double h, double dt) {
 
     int N = 5*resolution;
     int M = 15*resolution;
@@ -78,11 +76,11 @@ void computeLaplacianMatrix(Mat A, int resolution) {
     for (int i = 1; i < M-1; i++) {
         for (int j = 1; j < N-1; j++) {
             idx = j + i*N;
-            MatSetValue(A, idx, idx, -4.0, INSERT_VALUES);
-            MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-            MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-            MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
-            MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
+            MatSetValue(A, idx, idx, -4.0*dt/h, INSERT_VALUES);
+            MatSetValue(A, idx, idx+1, 1.0*dt/h, INSERT_VALUES);
+            MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+            MatSetValue(A, idx, idx+N, 1.0*dt/h, INSERT_VALUES);
+            MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
         }
     }
 
@@ -90,53 +88,49 @@ void computeLaplacianMatrix(Mat A, int resolution) {
     for (int j = 1; j < N-1; j++) {
         // left boundary
         idx = j;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+N, 1.0*dt/h, INSERT_VALUES);
 
         // right boundary
         idx = j + (M-1)*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
     }
 
     for (int i = 1; i < M-1; i++) {
         // lower boundary
         idx = i*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+N, 1.0*dt/h, INSERT_VALUES);
 
         // upper boundary
         idx = i*N + N-1;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
-        MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
+        MatSetValue(A, idx, idx+N, 1.0*dt/h, INSERT_VALUES);
     }
 
     // Corners
-    /*idx = 0;
-    MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);*/
     MatSetValue(A, 0, 0, 1.0, INSERT_VALUES);
     idx = N-1;
-    MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx, -2.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx+N, 1.0*dt/h, INSERT_VALUES);
     idx = (M-1)*N;
-    MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx, -2.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx+1, 1.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
     idx = N*M-1;
-    MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx, -2.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
 
     /*
     // Autour de l'objet
@@ -173,7 +167,7 @@ void computeLaplacianMatrix(Mat A, int resolution) {
 /*Modification to do in this function :*/
 /*   -Specify the number of unknows*/
 /*   -Specify the number of non-zero diagonals in the sparse matrix*/
-PetscErrorCode initialize_poisson_solver(Poisson_data* data, int resolution) {
+PetscErrorCode initialize_poisson_solver(Poisson_data* data, int resolution, double h, double dt) {
     PetscInt rowStart; /*rowStart = 0*/
     PetscInt rowEnd; /*rowEnd = the number of unknows*/
     PetscErrorCode ierr;
@@ -199,7 +193,7 @@ PetscErrorCode initialize_poisson_solver(Poisson_data* data, int resolution) {
     MatSeqAIJSetPreallocation(data->A, 5, NULL);
     MatGetOwnershipRange(data->A, &rowStart, &rowEnd);
 
-    computeLaplacianMatrix(data->A, resolution);
+    computeLaplacianMatrix(data->A, resolution, h, dt);
     ierr = MatAssemblyBegin(data->A, MAT_FINAL_ASSEMBLY);
     CHKERRQ(ierr);
     ierr = MatAssemblyEnd(data->A, MAT_FINAL_ASSEMBLY);

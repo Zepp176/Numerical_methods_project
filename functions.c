@@ -110,11 +110,11 @@ double get_b(double *u, double *v, int M, int N, double h, int i, int j) {
     return b/h;
 }
 
-double get_Pu(double *P, int M, int N, double h, int i, int j) {
+double get_gradu(double *P, int M, int N, double h, int i, int j) {
     return (P[i*N + j-1] - P[(i-1)*N + j-1]) / h;
 }
 
-double get_Pv(double *P, int M, int N, double h, int i, int j) {
+double get_gradv(double *P, int M, int N, double h, int i, int j) {
     return (P[(i-1)*N + j] - P[(i-1)*N + j-1]) / h;
 }
 
@@ -152,7 +152,7 @@ double get_RHSu(Sim_data *data, int i, int j) {
 
     double Hn  = get_a(u,     v,     M, N, h, i, j);
     double Hnm = get_a(u_pre, v_pre, M, N, h, i, j);
-    double gradP = get_Pu(P, M, N, h, i, j);
+    double gradP = get_gradu(P, M, N, h, i, j);
     double lapl = get_lapu(u, M, N, h, i, j);
 
     return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
@@ -172,14 +172,57 @@ double get_RHSv(Sim_data *data, int i, int j) {
 
     double Hn  = get_b(u,     v,     M, N, h, i, j);
     double Hnm = get_b(u_pre, v_pre, M, N, h, i, j);
-    double gradP = get_Pv(P, M, N, h, i, j);
+    double gradP = get_gradv(P, M, N, h, i, j);
     double lapl = get_lapv(v, M, N, h, i, j);
 
     return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
 }
 
 void compute_star(Sim_data *data) {
-    // TODO test
+    int M = data->M;
+    int N = data->N;
+    double dt = data->dt;
+
+    double *u_star = data->u_star;
+    double *v_star = data->v_star;
+    double *u = data->u;
+    double *v = data->v;
+
+    for (int i = 1; i < M; i++) { // Pour les u
+        for (int j = 1; j < N+1; j++) {
+            u_star[i*(N+2) + j] = u[i*(N+2) + j] + dt * get_RHSu(data, i, j);
+        }
+    }
+
+    for (int i = 1; i < M+1; i++) { // Pour les v
+        for (int j = 1; j < N; j++) {
+            v_star[i*(N+1) + j] = v[i*(N+1) + j] + dt * get_RHSv(data, i, j);
+        }
+    }
+}
+
+void compute_next(Sim_data *data) {
+    int M = data->M;
+    int N = data->N;
+    double dt = data->dt;
+    double h = data->h;
+
+    double *u = data->u;
+    double *v = data->v;
+    double *u_star = data->u_star;
+    double *v_star = data->v_star;
+
+    for (int i = 1; i < M; i++) { // Pour les u
+        for (int j = 1; j < N+1; j++) {
+            u[i*(N+2) + j] = u_star[i*(N+2) + j] - dt * get_gradu(data->phi, M, N, h, i, j);
+        }
+    }
+
+    for (int i = 1; i < M+1; i++) { // Pour les v
+        for (int j = 1; j < N; j++) {
+            v[i*(N+1) + j] = v_star[i*(N+1) + j] - dt * get_gradv(data->phi, M, N, h, i, j);
+        }
+    }
 }
 
 void init_sim_data(Sim_data *data, int res, double Re) {
@@ -189,9 +232,9 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->N = N;
     data->M = M;
 
-    data->nu = 1.0;
-    data->H_box = 1.0;
-    data->U_inf = Re;
+    data->nu = 0.000001;
+    data->H_box = 0.01;
+    data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
     data->dt = 1.0/(4*res*res);
 
@@ -268,13 +311,15 @@ void set_boundary(Sim_data *data) {
     // Left boundary
     for (int j = 1; j < N+1; j++) {
         u_star[j] = U_inf; // u = U_infinity
-        v_star[j] = -1.0/5.0 * (v[j + 3*(N+1)] - 5*v[j + 2*(N+1)] + 15*v[j + 1*(N+1)]); // ghost points : no tangential velocity
+        v_star[j] = 0.0; //-1.0/5.0 * (v[j + 3*(N+1)] - 5*v[j + 2*(N+1)] + 15*v[j + 1*(N+1)]); // ghost points : no tangential velocity
     }
 
     // Lateral boundaries
+    for (int i = 1; i < M; i++) {
+        u_star[(N+2)*i]       = u[(N+2)*i + 1]; // ghost points : no vorticity
+        u_star[(N+2)*i + N+1] = u[(N+2)*i + N];
+    }
     for (int i = 1; i < M+1; i++) {
-        u_star[(N+2)*i]       = u_star[(N+2)*i + 1]; // ghost points : no vorticity
-        u_star[(N+2)*i + N+1] = u_star[(N+2)*i + N];
         v_star[(N+1)*i]     = 0.0; // no tangential velocity
         v_star[(N+1)*i + N] = 0.0;
     }
@@ -283,15 +328,18 @@ void set_boundary(Sim_data *data) {
     int idx;
     for (int j = 1; j < N+1; j++) {
         idx = M*(N+2) + j;
-        u_star[idx] = u[idx] - U_inf*(u[idx] - u[idx-(N+2)])/h;
+        u_star[idx] = u[idx] - (u[idx] - u[idx-(N+2)]) * U_inf * dt / h;
     }
 
-    double vort_p; double vort_m;
+    /*double vort_p; double vort_m;
     for (int j = 1; j < N; j++) {
         idx = (M+1)*(N+1) + j;
         vort_p = get_v(data, 0, M+1, j+0.5) - get_v(data, 0, M, j+0.5) + get_u(data, 0, M+0.5, j) - get_u(data, 0, M+0.5, j+1);
         vort_m = get_v(data, 0, M, j+0.5) - get_v(data, 0, M-1, j+0.5) + get_u(data, 0, M-0.5, j) - get_u(data, 0, M-0.5, j+1);
         v_star[idx] = (1 - dt/h)*vort_p + dt/h * vort_m - get_u(data, 1, M+0.5, j) + get_u(data, 1, M+0.5, j+1) + get_v(data, 1, M, j+0.5);
+    }*/
+    for (int j = 1; j < N; j++) {
+        v_star[(N+1)*(M+1) + j] = v[(N+1)*M + j];
     }
 }
 
@@ -312,8 +360,7 @@ void switch_n(Sim_data *data) {
 }
 
 double divergence(Sim_data *data, int i, int j) {
-    double h = data->h;
-    return ( get_u(data, 1, i+0.5, j) - get_u(data, 1, i-0.5, j) + get_v(data, 1, i, j+0.5) - get_v(data, 1, i, j-0.5) ) / h;
+    return get_u(data, 1, i+0.5, j) - get_u(data, 1, i-0.5, j) + get_v(data, 1, i, j+0.5) - get_v(data, 1, i, j-0.5);
 }
 
 void update_pressure(Sim_data *data) {
