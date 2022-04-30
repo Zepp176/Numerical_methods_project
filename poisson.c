@@ -47,7 +47,7 @@ void poisson_solver(Poisson_data *pdata, Sim_data *sdata) {
     /*Solve the linear system of equations */
     KSPSolve(sles, b, x);
     KSPGetIterationNumber(sles, &its);
-    PetscPrintf(PETSC_COMM_WORLD, "Solution to Poisson eqn in %d iterations \n", its);
+    //PetscPrintf(PETSC_COMM_WORLD, "Solution to Poisson eqn in %d iterations \n", its);
 
     VecGetArray(x, &sol);
 
@@ -132,7 +132,6 @@ void computeLaplacianMatrix(Mat A, int resolution, double h, double dt) {
     MatSetValue(A, idx, idx-1, 1.0*dt/h, INSERT_VALUES);
     MatSetValue(A, idx, idx-N, 1.0*dt/h, INSERT_VALUES);
 
-    /*
     // Autour de l'objet
     int i_start = 3*resolution;
     int i_to    = 8*resolution;
@@ -142,24 +141,23 @@ void computeLaplacianMatrix(Mat A, int resolution, double h, double dt) {
     for (int i = i_start; i < i_to; i++) {
         // lower side
         idx = j_start-1 + i*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
         MatSetValue(A, idx, idx+1, 0.0, INSERT_VALUES);
         // upper side
         idx = j_to + i*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
         MatSetValue(A, idx, idx-1, 0.0, INSERT_VALUES);
     }
     for (int j = j_start; j < j_to; j++) {
         // left side
         idx = j + (i_start-1)*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
         MatSetValue(A, idx, idx+N, 0.0, INSERT_VALUES);
         // right side
         idx = j + i_to*N;
-        MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
+        MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
         MatSetValue(A, idx, idx-N, 0.0, INSERT_VALUES);
     }
-    */
 }
 
 /*To call during the initialization of your solver, before the begin of the time loop*/

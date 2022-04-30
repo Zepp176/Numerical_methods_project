@@ -5,7 +5,7 @@ int main(int argc, char *argv[]) {
 
     int resolution = atoi(argv[1]);
     double Re = (double) atoi(argv[2]);
-    int nIt = 100;
+    int nIt = 4000;
 
     // initialization of the program
     PetscInitialize(&argc, &argv, 0, 0);
@@ -28,13 +28,17 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < nIt; i++) {
-        set_boundary(sdata);
         compute_star(sdata);
+        set_boundary(sdata);
         mass_flow_condition(sdata);
         poisson_solver(pdata, sdata);
         switch_n(sdata);
         compute_next(sdata);
         update_pressure(sdata);
+
+        if (i%100 == 0) {
+            printf("iteration %d\n", i);
+        }
     }
 
     write_fields(sdata, "data/file.txt", 0);

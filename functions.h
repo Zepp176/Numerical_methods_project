@@ -20,6 +20,7 @@ typedef struct {
     double nu;
     double H_box;
     double dt;
+    int res;
 
 } Sim_data;
 

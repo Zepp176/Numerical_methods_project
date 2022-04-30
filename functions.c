@@ -237,6 +237,7 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
     data->dt = 1.0/(4*res*res);
+    data->res = res;
 
     data->u      = calloc((N+2)*(M+1), sizeof(double)); // u_n+1
     data->v      = calloc((N+1)*(M+2), sizeof(double));
@@ -300,6 +301,7 @@ void write_fields(Sim_data *data, char *filename, char t) {
 void set_boundary(Sim_data *data) {
     int M = data->M;
     int N = data->N;
+    int res = data->res;
     double U_inf = data->U_inf;
     double h = data->h;
     double dt = data->dt;
@@ -340,6 +342,36 @@ void set_boundary(Sim_data *data) {
     }*/
     for (int j = 1; j < N; j++) {
         v_star[(N+1)*(M+1) + j] = v[(N+1)*M + j];
+    }
+
+    // Laterals of the box
+    for (int i = 1 + 3*res; i < 1 + 8*res; i++) {
+        int j = 2*res;
+        v_star[i*(N+1) + j]     = 0.0; // down
+        v_star[i*(N+1) + j+res] = 0.0; // up
+    }
+    for (int i = 3*res + 1; i < 8*res; i++) {
+        int j = 3*res;
+
+        int idx = i*(N+2) + j;
+        u_star[idx] = -1.0/5.0 * (15*u[idx+1] - 5*u[idx+2] + u[idx+3]);
+
+        idx = i*(N+2) + j-res+1;
+        u_star[idx] = -1.0/5.0 * (15*u[idx-1] - 5*u[idx-2] + u[idx-3]);
+    }
+    for (int j = 1 + 2*res; j < 1 + 3*res; j++) {
+        int i = 3*res;
+        u_star[i*(N+2) + j]         = 0.0; // left
+        u_star[(i+5*res)*(N+2) + j] = 0.0; // right
+    }
+    for (int j = 2*res + 1; j < 3*res; j++) {
+        int i = 3*res + 1;
+        int idx = i*(N+1) + j;
+        v_star[idx] = -1.0/5.0 * (15*v[idx-(N+1)] - 5*v[idx-2*(N+1)] + v[idx-3*(N+1)]);
+
+        i = 8*res;
+        idx = i*(N+1) + j;
+        v_star[idx] = -1.0/5.0 * (15*v[idx+(N+1)] - 5*v[idx+2*(N+1)] + v[idx+3*(N+1)]);
     }
 }
 
@@ -385,11 +417,6 @@ void mass_flow_condition(Sim_data *data) {
         sum_i += data->u_star[j];
         sum_o += data->u_star[M*(N+2) + j];
     }
-
-    printf("\n  Equal mass flow condition:\n");
-    printf("avg entry : %f\n", sum_i/N);
-    printf("avg exit  : %f\n", sum_o/N);
-    printf("diff      : %f\n", (sum_i-sum_o)/N);
 
     for (int j = 1; j < N+1; j++) {
         data->u_star[M*(N+2) + j] -= (sum_i - sum_o)/N;
