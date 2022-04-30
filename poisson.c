@@ -20,6 +20,8 @@ void computeRHS(double *rhs, Sim_data *data) {
             rhs[idx] = h*h * divergence(data, i, j) / dt;
         }
     }
+
+    rhs[0] = 0.0;
 }
 
 /*To call at each time step after computation of U_star. This function solves the poisson equation*/
@@ -43,7 +45,6 @@ void poisson_solver(Poisson_data *pdata, Sim_data *sdata) {
     VecGetArray(b, &rhs);
     computeRHS(rhs, sdata); /*MODIFY THE PROTOTYPE HERE*/
     VecRestoreArray(b, &rhs);
-
 
     /*Solve the linear system of equations */
     KSPSolve(sles, b, x);
@@ -119,10 +120,11 @@ void computeLaplacianMatrix(Mat A, int resolution) {
     }
 
     // Corners
-    idx = 0;
+    /*idx = 0;
     MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
     MatSetValue(A, idx, idx+1, 1.0, INSERT_VALUES);
-    MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx+N, 1.0, INSERT_VALUES);*/
+    MatSetValue(A, 0, 0, 1.0, INSERT_VALUES);
     idx = N-1;
     MatSetValue(A, idx, idx, -2.0, INSERT_VALUES);
     MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
@@ -136,6 +138,7 @@ void computeLaplacianMatrix(Mat A, int resolution) {
     MatSetValue(A, idx, idx-1, 1.0, INSERT_VALUES);
     MatSetValue(A, idx, idx-N, 1.0, INSERT_VALUES);
 
+    /*
     // Autour de l'objet
     int i_start = 3*resolution;
     int i_to    = 8*resolution;
@@ -162,6 +165,7 @@ void computeLaplacianMatrix(Mat A, int resolution) {
         MatSetValue(A, idx, idx, -3.0, INSERT_VALUES);
         MatSetValue(A, idx, idx-N, 0.0, INSERT_VALUES);
     }
+    */
 }
 
 /*To call during the initialization of your solver, before the begin of the time loop*/

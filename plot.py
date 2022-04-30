@@ -34,12 +34,31 @@ print(len(x), len(x[0]))
 print(len(y), len(y[0]))
 print(len(field), len(field[0]))
 
-print(u)
+plt.figure(figsize=(7,5))
+plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
+plt.axis('equal')
+plt.colorbar()
+plt.show()
 
-fig = plt.figure()
-ax = fig.gca(projection='3d')
 
-surf = ax.plot_surface(x, y, field, cmap=cm.coolwarm,
-                       linewidth=0, antialiased=False)
 
+
+
+x = np.linspace(0, 15*H, M)
+y = np.linspace(0,  5*H, N)
+x, y = np.meshgrid(x, y)
+
+field = np.empty((N, M))
+for i in range(M):
+    for j in range(N):
+        field[j, i] = P[j+i*N]
+
+print(len(x), len(x[0]))
+print(len(y), len(y[0]))
+print(len(field), len(field[0]))
+
+plt.figure(figsize=(7,5))
+plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
+plt.axis('equal')
+plt.colorbar()
 plt.show()

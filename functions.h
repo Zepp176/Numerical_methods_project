@@ -25,17 +25,21 @@ typedef struct {
 
 double get_u(Sim_data *data, int t, float idx_i, float idx_j);
 double get_v(Sim_data *data, int t, float idx_i, float idx_j);
-double get_a(Sim_data *data, int t, float i, float j);
-double get_b(Sim_data *data, int t, float i, float j);
-double get_grad_P(Sim_data *data, float idx_i, float idx_j);
-double get_laplacian(Sim_data *data, float idx_i, float idx_j);
+double get_a(double *u, double *v, int M, int N, double h, int i, int j);
+double get_b(double *u, double *v, int M, int N, double h, int i, int j);
+double get_Pu(double *P, int M, int N, double h, int i, int j);
+double get_Pv(double *P, int M, int N, double h, int i, int j);
+double get_lapu(double *u, int M, int N, double h, int i, int j);
+double get_lapv(double *v, int M, int N, double h, int i, int j);
+double get_RHSu(Sim_data *data, int i, int j);
+double get_RHSv(Sim_data *data, int i, int j);
 void init_sim_data(Sim_data *data, int res, double Re);
 void free_sim_data(Sim_data *data);
-void write_fields(Sim_data *data, char *filename);
+void write_fields(Sim_data *data, char *filename, char t);
 void set_boundary(Sim_data *data);
-void compute_star(Sim_data *data);
 void switch_n(Sim_data *data);
 double divergence(Sim_data *data, int i, int j);
 void update_pressure(Sim_data *data);
+void mass_flow_condition(Sim_data *data);
 
 #endif

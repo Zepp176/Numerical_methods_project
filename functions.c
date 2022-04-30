@@ -66,59 +66,120 @@ double get_v(Sim_data *data, int t, float idx_i, float idx_j) {
     return v[idx+1];
 }
 
-double get_a(Sim_data *data, int t, float i, float j) {
-    double h = data->h;
+double get_a(double *u, double *v, int M, int N, double h, int i, int j) {
+    double u_ip32   = u[(i+1)*(N+2) + j];
+    double u_ip12   = u[i*(N+2) + j];
+    double u_im12   = u[(i-1)*(N+2) + j];
+    double u_jp1    = u[i*(N+2) + j+1];
+    double u_jm1    = u[i*(N+2) + j-1];
+    double v_jp12   = v[i*(N+1) + j];
+    double v_jm12   = v[i*(N+1) + j-1];
+    double v_i1jp12 = v[(i+1)*(N+1) + j];
+    double v_i1jm12 = v[(i+1)*(N+1) + j-1];
 
-    return get_u(data, t, i, j)*(get_u(data, t, i+1.0, j) - get_u(data, t, i-1.0, j))/(2*h)
-         + get_v(data, t, i, j)*(get_u(data, t, i, j+1.0) - get_u(data, t, i, j-1.0))/(2*h);
+    double u_r = (u_ip32 + u_ip12)/2.0;
+    double u_l = (u_ip12 + u_im12)/2.0;
+    double v_u = (v_jp12 + v_i1jp12)/2.0;
+    double v_d = (v_jm12 + v_i1jm12)/2.0;
+
+    double a = 1.0/2.0 * (u_r * (u_ip32 - u_ip12) + u_l * (u_ip12 - u_im12));
+          a += 1.0/2.0 * (v_u * (u_jp1  - u_ip12) + v_d * (u_ip12 - u_jm1 ));
+
+    return a/h;
 }
 
-double get_b(Sim_data *data, int t, float i, float j) {
-    double h = data->h;
+double get_b(double *u, double *v, int M, int N, double h, int i, int j) {
+    double v_l = v[(i-1)*(N+1) + j];
+    double v_m = v[i*(N+1) + j];
+    double v_r = v[(i+1)*(N+1) + j];
+    double v_u = v[i*(N+1) + j+1];
+    double v_d = v[i*(N+1) + j-1];
+    double u_ul = u[(i-1)*(N+2) + j+1];
+    double u_ur = u[i*(N+2) + j+1];
+    double u_dl = u[(i-1)*(N+2) + j];
+    double u_dr = u[i*(N+2) + j];
 
-    return get_u(data, t, i, j)*(get_v(data, t, i+1.0, j) - get_v(data, t, i-1.0, j))/(2*h)
-         + get_v(data, t, i, j)*(get_v(data, t, i, j+1.0) - get_v(data, t, i, j-1.0))/(2*h);
+    double u_rm = (u_ur + u_dr)/2.0;
+    double u_lm = (u_ul + u_dl)/2.0;
+    double v_um = (v_u + v_m)/2.0;
+    double v_dm = (v_m + v_d)/2.0;
+
+    double b = 1.0/2.0 * (u_rm * (v_r - v_m) + u_lm * (v_m - v_l));
+          b += 1.0/2.0 * (v_um * (v_u - v_m) + v_dm * (v_m - v_d));
+
+    return b/h;
 }
 
-double get_grad_P(Sim_data *data, float idx_i, float idx_j) {
-    double h = data->h;
-    double *P = data->P;
+double get_Pu(double *P, int M, int N, double h, int i, int j) {
+    return (P[i*N + j-1] - P[(i-1)*N + j-1]) / h;
+}
+
+double get_Pv(double *P, int M, int N, double h, int i, int j) {
+    return (P[(i-1)*N + j] - P[(i-1)*N + j-1]) / h;
+}
+
+double get_lapu(double *u, int M, int N, double h, int i, int j) {
+    double u_r = u[(i+1)*(N+2) + j];
+    double u_m = u[i*(N+2) + j];
+    double u_l = u[(i-1)*(N+2) + j];
+    double u_u = u[i*(N+2) + j+1];
+    double u_d = u[i*(N+2) + j-1];
+
+    return (u_r + u_l + u_u + u_d - 4*u_m) / (h*h);
+}
+
+double get_lapv(double *v, int M, int N, double h, int i, int j) {
+    double v_l = v[(i-1)*(N+1) + j];
+    double v_m = v[i*(N+1) + j];
+    double v_r = v[(i+1)*(N+1) + j];
+    double v_u = v[i*(N+1) + j+1];
+    double v_d = v[i*(N+1) + j-1];
+
+    return (v_l + v_r + v_u + v_d - 4*v_m) / (h*h);
+}
+
+double get_RHSu(Sim_data *data, int i, int j) {
+    int M = data->M;
     int N = data->N;
+    double h = data->h;
+    double nu = data->nu;
 
-    int i = (int) idx_i;
-    int j = (int) idx_j;
-    char semi_i = !(idx_i == i);
+    double *u = data->u;
+    double *v = data->v;
+    double *u_pre = data->u_pre;
+    double *v_pre = data->v_pre;
+    double *P = data->P;
 
-    int idx = j + i*N;
+    double Hn  = get_a(u,     v,     M, N, h, i, j);
+    double Hnm = get_a(u_pre, v_pre, M, N, h, i, j);
+    double gradP = get_Pu(P, M, N, h, i, j);
+    double lapl = get_lapu(u, M, N, h, i, j);
 
-    // pour vitesse u
-    if (semi_i) {
-        return (P[idx+N] - P[idx]) / h;
-    }
-
-    // pour vitesse v
-    else {
-        return (P[idx+1] - P[idx]) / h;
-    }
+    return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
 }
 
-double get_laplacian(Sim_data *data, float idx_i, float idx_j) {
+double get_RHSv(Sim_data *data, int i, int j) {
+    int M = data->M;
+    int N = data->N;
     double h = data->h;
+    double nu = data->nu;
 
-    int i = (int) idx_i;
-    char semi_i = !(idx_i == i);
+    double *u = data->u;
+    double *v = data->v;
+    double *u_pre = data->u_pre;
+    double *v_pre = data->v_pre;
+    double *P = data->P;
 
-    // pour vitesse u
-    if (semi_i) {
-        return (-4*get_u(data, 0, idx_i, idx_j) + get_u(data, 0, idx_i+1.0, idx_j) + get_u(data, 0, idx_i-1.0, idx_j)
-                                                + get_u(data, 0, idx_i, idx_j+1.0) + get_u(data, 0, idx_i, idx_j-1.0)) / (h*h);
-    }
+    double Hn  = get_b(u,     v,     M, N, h, i, j);
+    double Hnm = get_b(u_pre, v_pre, M, N, h, i, j);
+    double gradP = get_Pv(P, M, N, h, i, j);
+    double lapl = get_lapv(v, M, N, h, i, j);
 
-    // pour vitesse v
-    else {
-        return (-4*get_v(data, 0, idx_i, idx_j) + get_v(data, 0, idx_i+1.0, idx_j) + get_v(data, 0, idx_i-1.0, idx_j)
-                                                + get_v(data, 0, idx_i, idx_j+1.0) + get_v(data, 0, idx_i, idx_j-1.0)) / (h*h);
-    }
+    return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
+}
+
+void compute_star(Sim_data *data) {
+    // TODO
 }
 
 void init_sim_data(Sim_data *data, int res, double Re) {
@@ -155,7 +216,7 @@ void free_sim_data(Sim_data *data) {
     free(data->phi);
 }
 
-void write_fields(Sim_data *data, char *filename) {
+void write_fields(Sim_data *data, char *filename, char t) {
     FILE *f = fopen(filename, "w");
     if (f == NULL) {
         printf("ERROR opening %s\n", filename);
@@ -164,8 +225,18 @@ void write_fields(Sim_data *data, char *filename) {
 
     int M = data->M;
     int N = data->N;
-    double *u = data->u_star;
-    double *v = data->v_star;
+    double *u;
+    double *v;
+    if (t == 1) {
+        u = data->u_star;
+        v = data->v_star;
+    } else if (t == -1) {
+        u = data->u_pre;
+        v = data->v_pre;
+    } else {
+        u = data->u;
+        v = data->v;
+    }
     double *P = data->P;
 
     fprintf(f, "%d %d\n", M, N);
@@ -224,37 +295,6 @@ void set_boundary(Sim_data *data) {
     }
 }
 
-void compute_star(Sim_data *data) {
-    int M = data->M;
-    int N = data->N;
-    double dt = data->dt;
-    double nu = data->nu;
-    double *u_star = data->u_star;
-    double *v_star = data->v_star;
-    double *u = data->u;
-    double *v = data->v;
-
-    // u star
-    for (int i = 1; i < M; i++) {
-        for (int j = 1; j < N+1; j++) {
-            u_star[i*(N+2) + j] = u[i*(N+2) + j];
-            u_star[i*(N+2) + j] += -dt / 2.0 * (3.0 * get_a(data, 0, i+0.5, j) - get_a(data, -1, i+0.5, j));
-            u_star[i*(N+2) + j] += -get_grad_P(data, i+0.5, j);
-            u_star[i*(N+2) + j] += nu*get_laplacian(data, i+0.5, j);
-        }
-    }
-
-    // v star
-    for (int i = 1; i < M; i++) {
-        for (int j = 1; j < N+1; j++) {
-            v_star[i*(N+1) + j] = v[i*(N+1) + j];
-            v_star[i*(N+1) + j] += -dt / 2.0 * (3.0 * get_b(data, 0, i, j+0.5) - get_b(data, -1, i, j+0.5));
-            v_star[i*(N+1) + j] += -get_grad_P(data, i, j+0.5);
-            v_star[i*(N+1) + j] += nu*get_laplacian(data, i, j+0.5);
-        }
-    }
-}
-
 void switch_n(Sim_data *data) {
     int M = data->M;
     int N = data->N;
@@ -268,20 +308,6 @@ void switch_n(Sim_data *data) {
     }
     for (int i = 0; i < (N+1)*(M+2); i++) {
         v_pre[i] = v[i];
-    }
-
-
-
-
-    // DELETE
-
-    double *u_star = data->u_star;
-    double *v_star = data->v_star;
-    for (int i = 0; i < (N+2)*(M+1); i++) {
-        u[i] = u_star[i];
-    }
-    for (int i = 0; i < (N+1)*(M+2); i++) {
-        v[i] = v_star[i];
     }
 }
 
@@ -298,5 +324,27 @@ void update_pressure(Sim_data *data) {
 
     for (int i = 0; i < M*N; i++) {
         P[i] += phi[i];
+    }
+}
+
+void mass_flow_condition(Sim_data *data) {
+    int M = data->M;
+    int N = data->N;
+
+    double sum_i = 0.0;
+    double sum_o = 0.0;
+
+    for (int j = 1; j < N+1; j++) {
+        sum_i += data->u_star[j];
+        sum_o += data->u_star[M*(N+2) + j];
+    }
+
+    printf("\n  Equal mass flow condition:\n");
+    printf("avg entry : %f\n", sum_i/N);
+    printf("avg exit  : %f\n", sum_o/N);
+    printf("diff      : %f\n", (sum_i-sum_o)/N);
+
+    for (int j = 1; j < N+1; j++) {
+        data->u_star[M*(N+2) + j] -= (sum_i - sum_o)/N;
     }
 }

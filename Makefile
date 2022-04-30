@@ -17,3 +17,6 @@ clean :
 #Delete of results
 clean_txt :
 	rm -vf results/*.txt results/P-* results/U-* results/V-* results/Reh-* results/Vtx-* results/Rehw-* results/Div-*
+
+test :
+	gcc -o utest unittest.c poisson.c functions.c -lm -lmpi $(CXX_FLAGS) $(LIB_DIR) $(LIB) $(INC_DIR)
