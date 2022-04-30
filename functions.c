@@ -179,7 +179,7 @@ double get_RHSv(Sim_data *data, int i, int j) {
 }
 
 void compute_star(Sim_data *data) {
-    // TODO
+    // TODO test
 }
 
 void init_sim_data(Sim_data *data, int res, double Re) {
