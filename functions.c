@@ -172,6 +172,25 @@ void compute_next(Sim_data *data) {
         u[i*(N+2) + j]         = 0.0; // left
         u[(i+5*res)*(N+2) + j] = 0.0; // right
     }
+    for (int i = 3*res + 1; i < 8*res; i++) {
+        int j = 3*res;
+
+        int idx = i*(N+2) + j;
+        u[idx] = u_star[idx];
+
+        idx = i*(N+2) + j-res+1;
+        u[idx] = u_star[idx];
+    }
+    for (int j = 2*res + 1; j < 3*res; j++) {
+        int i = 3*res + 1;
+
+        int idx = i*(N+1) + j;
+        v[idx] = v_star[idx];
+
+        i = 8*res;
+        idx = i*(N+1) + j;
+        v[idx] = v_star[idx];
+    }
 }
 
 void init_sim_data(Sim_data *data, int res, double Re) {
@@ -185,7 +204,7 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->H_box = 0.01;
     data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
-    data->dt = 1.0/(4.0*res*res);
+    data->dt = 4.0*data->nu/(9.0*data->U_inf*data->U_inf);//1.0/(4.0*res*res);
     data->res = res;
 
     data->u      = calloc((N+2)*(M+1), sizeof(double)); // u_n+1

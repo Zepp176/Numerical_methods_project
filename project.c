@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     }
     set_boundary(sdata);
 
-    int nb_frames = 120;
+    int nb_frames = 480;
     int step = nIt / nb_frames;
     char *str = malloc(50*sizeof(char));
 
