@@ -24,8 +24,6 @@ typedef struct {
 
 } Sim_data;
 
-double get_u(Sim_data *data, int t, float idx_i, float idx_j);
-double get_v(Sim_data *data, int t, float idx_i, float idx_j);
 double get_a(double *u, double *v, int M, int N, double h, int i, int j);
 double get_b(double *u, double *v, int M, int N, double h, int i, int j);
 double get_gradu(double *P, int M, int N, double h, int i, int j);

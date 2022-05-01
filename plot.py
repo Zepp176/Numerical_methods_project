@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import plotly.figure_factory as ff
 
 f = open("data/file.txt", "r")
 data = f.read().split("\n")
@@ -18,38 +19,42 @@ for i in range(len(v)):
 for i in range(len(P)):
     P[i] = float(P[i])
 
-H = 1
+H = 0.01
 h = 5*H/N
 
 x = np.linspace(0, 15*H, M+1)
-y = np.linspace(-h/2,  5*H + h/2, N+2)
+y = np.linspace(0,  5*H, N+1)
 x, y = np.meshgrid(x, y)
 
-field = np.empty((N+2, M+1))
-for i in range(M+1):
-    for j in range(N+2):
-        field[j, i] = u[j+i*(N+2)]
+u = np.array(u).reshape(M+1, N+2).T
+v = np.array(v).reshape(M+2, N+1).T
 
-plt.figure(figsize=(7,5))
-plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
+velocity = np.sqrt( ( (u[1:-1,1:] + u[1:-1,:-1])/2 )**2
+                  + ( (v[1:,1:-1] + v[:-1,1:-1])/2 )**2 )
+
+plt.figure(figsize=(18.5,5))
+plt.pcolormesh(x, y, velocity, cmap=cm.coolwarm, shading='auto')
+plt.fill([0.03, 0.08, 0.08, 0.03], [0.02, 0.02, 0.03, 0.03], c='k')
 plt.axis('equal')
+plt.title('velocity')
 plt.colorbar()
 plt.show()
+#plt.savefig("figures/velocity_result_1.png", dpi=300)
 
+vorticity = (-u[1:,:] + u[:-1,:] - v[:,:-1] + v[:,1:])/h
+vorticity[2*N//5+1:3*N//5,3*N//5+1:8*N//5] = np.zeros((N//5-1, 5*N//5-1))
 
+U = (u[1:-1,1:] + u[1:-1,:-1])/2
+V = (v[1:,1:-1] + v[:-1,1:-1])/2
+X = (x[1:,1:] + x[:-1,:-1])/2
+Y = (y[1:,1:] + y[:-1,:-1])/2
 
-x = np.linspace(0, 15*H, M)
-y = np.linspace(0,  5*H, N)
-x, y = np.meshgrid(x, y)
-
-field = np.empty((N, M))
-for i in range(M):
-    for j in range(N):
-        field[j, i] = P[j+i*N]
-
-plt.figure(figsize=(7,5))
-plt.pcolormesh(x, y, field, cmap=cm.coolwarm, shading='auto')
-plt.axis('equal')
+plt.figure(figsize=(18.5,5))
+plt.pcolormesh(x, y, vorticity, cmap=cm.coolwarm, shading='auto', vmax=100, vmin=-100)
 plt.colorbar()
-plt.title("Pressure")
+plt.streamplot(X, Y, U, V, color='k', density=[0.5, 1], linewidth=1)
+plt.fill([0.03, 0.08, 0.08, 0.03], [0.02, 0.02, 0.03, 0.03], c='k')
+plt.axis('equal')
+plt.title('vorticity')
 plt.show()
+#plt.savefig("figures/vorticity_result_1.png", dpi=300)

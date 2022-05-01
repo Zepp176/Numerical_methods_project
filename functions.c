@@ -2,70 +2,6 @@
 #include "poisson.h"
 #include "functions.h"
 
-double get_u(Sim_data *data, int t, float idx_i, float idx_j) {
-    int N = data->N;
-    double *u;
-    if (t == -1) {u = data->u_pre;}
-    else if (t == 1) {u = data->u_star;}
-    else {u = data->u;}
-
-    int i = (int) idx_i;
-    int j = (int) idx_j;
-    char semi_i = !(idx_i == i);
-    char semi_j = !(idx_j == j);
-
-    int idx = 1 + (j-1) + (N+2)*(i-1);
-
-    // Si au milieu de la cellule
-    if (!semi_i && !semi_j) {
-        return (u[idx]+u[idx+N+2])/2;
-    }
-
-    // Si en haut à droite de la cellule
-    else if (semi_i && semi_j) {
-        return (u[idx+N+2]+u[idx+N+3])/2;
-    }
-
-    // Si à droite
-    else if (semi_i) {
-        return u[idx+N+2];
-    }
-
-    return (u[idx] + u[idx+1] + u[idx+N+2] + u[idx+N+3]) / 4;
-}
-
-double get_v(Sim_data *data, int t, float idx_i, float idx_j) {
-    int N = data->N;
-    double *v;
-    if (t == -1) {v = data->v_pre;}
-    else if (t == 1) {v = data->v_star;}
-    else {v = data->v;}
-
-    int i = (int) idx_i;
-    int j = (int) idx_j;
-    char semi_i = !(idx_i == i);
-    char semi_j = !(idx_j == j);
-
-    int idx = (j-1) + (N+1)*i;
-
-    // Si au milieu de la cellule
-    if (!semi_i && !semi_j) {
-        return (v[idx]+v[idx+1])/2;
-    }
-
-    // Si en haut à droite de la cellule
-    else if (semi_i && semi_j) {
-        return (v[idx+1]+v[idx+N+2])/2;
-    }
-
-    // Si à droite
-    else if (semi_i) {
-        return (v[idx] + v[idx+1] + v[idx+N+1] + v[idx+N+2]) / 4;
-    }
-
-    return v[idx+1];
-}
-
 double get_a(double *u, double *v, int M, int N, double h, int i, int j) {
     double u_ip32   = u[(i+1)*(N+2) + j];
     double u_ip12   = u[i*(N+2) + j];
@@ -223,6 +159,19 @@ void compute_next(Sim_data *data) {
             v[i*(N+1) + j] = v_star[i*(N+1) + j] - dt * get_gradv(data->phi, M, N, h, i, j);
         }
     }
+
+    // Laterals of the box
+    int res = data->res;
+    for (int i = 1 + 3*res; i < 1 + 8*res; i++) {
+        int j = 2*res;
+        v[i*(N+1) + j]     = 0.0; // down
+        v[i*(N+1) + j+res] = 0.0; // up
+    }
+    for (int j = 1 + 2*res; j < 1 + 3*res; j++) {
+        int i = 3*res;
+        u[i*(N+2) + j]         = 0.0; // left
+        u[(i+5*res)*(N+2) + j] = 0.0; // right
+    }
 }
 
 void init_sim_data(Sim_data *data, int res, double Re) {
@@ -236,7 +185,7 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->H_box = 0.01;
     data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
-    data->dt = 1.0/(4*res*res);
+    data->dt = 1.0/(4.0*res*res);
     data->res = res;
 
     data->u      = calloc((N+2)*(M+1), sizeof(double)); // u_n+1
@@ -313,17 +262,26 @@ void set_boundary(Sim_data *data) {
     // Left boundary
     for (int j = 1; j < N+1; j++) {
         u_star[j] = U_inf; // u = U_infinity
-        v_star[j] = 0.0; //-1.0/5.0 * (v[j + 3*(N+1)] - 5*v[j + 2*(N+1)] + 15*v[j + 1*(N+1)]); // ghost points : no tangential velocity
+        v_star[j] = -1.0/5.0 * (v[j + 3*(N+1)] - 5*v[j + 2*(N+1)] + 15*v[j + 1*(N+1)]); // ghost points : no tangential velocity
+
+        u[j] = u_star[j];
+        v[j] = v_star[j];
     }
 
     // Lateral boundaries
     for (int i = 1; i < M; i++) {
         u_star[(N+2)*i]       = u[(N+2)*i + 1]; // ghost points : no vorticity
         u_star[(N+2)*i + N+1] = u[(N+2)*i + N];
+
+        u[(N+2)*i] = u_star[(N+2)*i];
+        u[(N+2)*i + N+1] = u_star[(N+2)*i + N+1];
     }
     for (int i = 1; i < M+1; i++) {
         v_star[(N+1)*i]     = 0.0; // no tangential velocity
         v_star[(N+1)*i + N] = 0.0;
+
+        v[(N+1)*i] = v_star[(N+1)*i];
+        v[(N+1)*i + N] = v_star[(N+1)*i + N];
     }
 
     // Right boundary
@@ -331,17 +289,25 @@ void set_boundary(Sim_data *data) {
     for (int j = 1; j < N+1; j++) {
         idx = M*(N+2) + j;
         u_star[idx] = u[idx] - (u[idx] - u[idx-(N+2)]) * U_inf * dt / h;
+
+        u[idx] = u_star[idx];
     }
 
-    /*double vort_p; double vort_m;
+    double vort_p; double vort_m; double RHS;
     for (int j = 1; j < N; j++) {
-        idx = (M+1)*(N+1) + j;
-        vort_p = get_v(data, 0, M+1, j+0.5) - get_v(data, 0, M, j+0.5) + get_u(data, 0, M+0.5, j) - get_u(data, 0, M+0.5, j+1);
-        vort_m = get_v(data, 0, M, j+0.5) - get_v(data, 0, M-1, j+0.5) + get_u(data, 0, M-0.5, j) - get_u(data, 0, M-0.5, j+1);
-        v_star[idx] = (1 - dt/h)*vort_p + dt/h * vort_m - get_u(data, 1, M+0.5, j) + get_u(data, 1, M+0.5, j+1) + get_v(data, 1, M, j+0.5);
-    }*/
-    for (int j = 1; j < N; j++) {
-        v_star[(N+1)*(M+1) + j] = v[(N+1)*M + j];
+        idx = M*(N+2) + j;
+        vort_p = u[idx] - u[idx+1];
+        idx = (M-1)*(N+2) + j;
+        vort_m = u[idx] - u[idx+1];
+        idx = M*(N+1) + j;
+        vort_p += v[idx+N+1] - v[idx];
+        idx = (M-1)*(N+1) + j;
+        vort_m += v[idx+N+1] - v[idx];
+
+        RHS = vort_p - U_inf*dt/h * (vort_p - vort_m);
+        v_star[(M+1)*(N+1) + j] = v_star[M*(N+1) + j] + u_star[M*(N+2) + j+1] - u_star[M*(N+2) + j] + RHS;
+
+        v[(M+1)*(N+1) + j] = v_star[(M+1)*(N+1) + j];
     }
 
     // Laterals of the box
@@ -392,7 +358,10 @@ void switch_n(Sim_data *data) {
 }
 
 double divergence(Sim_data *data, int i, int j) {
-    return get_u(data, 1, i+0.5, j) - get_u(data, 1, i-0.5, j) + get_v(data, 1, i, j+0.5) - get_v(data, 1, i, j-0.5);
+    int N = data->N;
+    double *u = data->u_star;
+    double *v = data->v_star;
+    return u[i*(N+2) + j] - u[(i-1)*(N+2) + j] + v[i*(N+1) + j] - v[i*(N+1) +j-1]; // ne pas mettre 1/h ici!!! déjà pris en compte dans A
 }
 
 void update_pressure(Sim_data *data) {
@@ -419,6 +388,6 @@ void mass_flow_condition(Sim_data *data) {
     }
 
     for (int j = 1; j < N+1; j++) {
-        data->u_star[M*(N+2) + j] -= (sum_i - sum_o)/N;
+        data->u_star[M*(N+2) + j] += (sum_i - sum_o)/N;
     }
 }

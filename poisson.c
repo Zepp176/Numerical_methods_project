@@ -8,6 +8,8 @@
 /*    -Fill vector rhs*/
 void computeRHS(double *rhs, Sim_data *data) {
 
+    mass_flow_condition(data);
+
     int N = data->N;
     int M = data->M;
     int idx;
@@ -158,6 +160,23 @@ void computeLaplacianMatrix(Mat A, int resolution, double h, double dt) {
         MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
         MatSetValue(A, idx, idx-N, 0.0, INSERT_VALUES);
     }
+    // coins du bloc
+    idx = (resolution*3 - 1)*N + (2*resolution - 1);    // bas gauche
+    MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx+1, 0.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx+N, 0.0, INSERT_VALUES);
+    idx = (resolution*3 - 1)*N + (3*resolution);        // haut gauche
+    MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-1, 0.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx+N, 0.0, INSERT_VALUES);
+    idx = (resolution*8)*N + (2*resolution - 1);        // bas droite
+    MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx+1, 0.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx-N, 0.0, INSERT_VALUES);
+    idx = (resolution*8)*N + (3*resolution);            // haut droite
+    MatSetValue(A, idx, idx, -3.0*dt/h, INSERT_VALUES);
+    MatSetValue(A, idx, idx-1, 0.0, INSERT_VALUES);
+    MatSetValue(A, idx, idx-N, 0.0, INSERT_VALUES);
 }
 
 /*To call during the initialization of your solver, before the begin of the time loop*/
