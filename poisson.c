@@ -223,7 +223,7 @@ PetscErrorCode initialize_poisson_solver(Poisson_data* data, int resolution, dou
     PC prec;
     KSPGetPC(data->sles, &prec);
     PCSetType(prec,PCLU);
-    //KSPSetFromOptions(data->sles); // to uncomment if we want to specify the solver to use in command line. Ex: mpirun -ksp_type gmres -pc_type gamg
+    KSPSetFromOptions(data->sles); // to uncomment if we want to specify the solver to use in command line. Ex: mpirun -ksp_type gmres -pc_type gamg
     KSPSetTolerances(data->sles, 1.e-12, 1e-12, PETSC_DEFAULT, PETSC_DEFAULT);
     KSPSetReusePreconditioner(data->sles,PETSC_TRUE);
     KSPSetUseFischerGuess(data->sles,1,4);

@@ -21,18 +21,20 @@ typedef struct {
     double H_box;
     double dt;
     int res;
+    double beta;
+    double fourier;
 
 } Sim_data;
 
-double get_a(double *u, double *v, int M, int N, double h, int i, int j);
-double get_b(double *u, double *v, int M, int N, double h, int i, int j);
+double get_a(double *u, double *v, int M, int N, double h, int i, int j, double v_mesh);
+double get_b(double *u, double *v, int M, int N, double h, int i, int j, double v_mesh);
 double get_gradu(double *P, int M, int N, double h, int i, int j);
 double get_gradv(double *P, int M, int N, double h, int i, int j);
 double get_lapu(double *u, int M, int N, double h, int i, int j);
 double get_lapv(double *v, int M, int N, double h, int i, int j);
-double get_RHSu(Sim_data *data, int i, int j);
-double get_RHSv(Sim_data *data, int i, int j);
-void compute_star(Sim_data *data);
+double get_RHSu(Sim_data *data, int i, int j, double v_mesh);
+double get_RHSv(Sim_data *data, int i, int j, double v_mesh);
+void compute_star(Sim_data *data, double v_mesh);
 void compute_next(Sim_data *data);
 void init_sim_data(Sim_data *data, int res, double Re);
 void free_sim_data(Sim_data *data);

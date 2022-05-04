@@ -2,8 +2,26 @@
 #include "poisson.h"
 #include "functions.h"
 
-double get_a(double *u, double *v, int M, int N, double h, int i, int j) {
-    double u_ip32   = u[(i+1)*(N+2) + j];
+double get_a(double *u, double *v, int M, int N, double h, int i, int j, double v_mesh) {
+    double u_r   = u[(i+1)*(N+2) + j];
+    double u_m   = u[i*(N+2) + j];
+    double u_l   = u[(i-1)*(N+2) + j];
+    double u_u    = u[i*(N+2) + j+1];
+    double u_d    = u[i*(N+2) + j-1];
+    double v_ul   = v[i*(N+1) + j];
+    double v_dl   = v[i*(N+1) + j-1];
+    double v_ur = v[(i+1)*(N+1) + j];
+    double v_dr = v[(i+1)*(N+1) + j-1];
+
+    double u_rm = (u_ip32 + u_ip12)/2.0;
+    double u_lm = (u_ip12 + u_im12)/2.0;
+    double v_um = (v_jp12 + v_i1jp12)/2.0;
+    double v_dm = (v_jm12 + v_i1jm12)/2.0;
+
+    double a = 1.0/2.0 * (u_rm * (u_r - u_m) + u_lm * (u_m - u_l));
+          a += 1.0/2.0 * ((v_um - v_mesh) * (u_u - u_m) + (v_dm - v_mesh) * (u_m - u_d ));
+
+    /*double u_ip32   = u[(i+1)*(N+2) + j];
     double u_ip12   = u[i*(N+2) + j];
     double u_im12   = u[(i-1)*(N+2) + j];
     double u_jp1    = u[i*(N+2) + j+1];
@@ -19,12 +37,12 @@ double get_a(double *u, double *v, int M, int N, double h, int i, int j) {
     double v_d = (v_jm12 + v_i1jm12)/2.0;
 
     double a = 1.0/2.0 * (u_r * (u_ip32 - u_ip12) + u_l * (u_ip12 - u_im12));
-          a += 1.0/2.0 * (v_u * (u_jp1  - u_ip12) + v_d * (u_ip12 - u_jm1 ));
+          a += 1.0/2.0 * (v_u * (u_jp1  - u_ip12) + v_d * (u_ip12 - u_jm1 ));*/
 
     return a/h;
 }
 
-double get_b(double *u, double *v, int M, int N, double h, int i, int j) {
+double get_b(double *u, double *v, int M, int N, double h, int i, int j, double v_mesh) {
     double v_l = v[(i-1)*(N+1) + j];
     double v_m = v[i*(N+1) + j];
     double v_r = v[(i+1)*(N+1) + j];
@@ -41,7 +59,7 @@ double get_b(double *u, double *v, int M, int N, double h, int i, int j) {
     double v_dm = (v_m + v_d)/2.0;
 
     double b = 1.0/2.0 * (u_rm * (v_r - v_m) + u_lm * (v_m - v_l));
-          b += 1.0/2.0 * (v_um * (v_u - v_m) + v_dm * (v_m - v_d));
+          b += 1.0/2.0 * ((v_um - v_mesh) * (v_u - v_m) + (v_dm - v_mesh) * (v_m - v_d));
 
     return b/h;
 }
@@ -74,7 +92,7 @@ double get_lapv(double *v, int M, int N, double h, int i, int j) {
     return (v_l + v_r + v_u + v_d - 4*v_m) / (h*h);
 }
 
-double get_RHSu(Sim_data *data, int i, int j) {
+double get_RHSu(Sim_data *data, int i, int j, double v_mesh) {
     int M = data->M;
     int N = data->N;
     double h = data->h;
@@ -86,15 +104,15 @@ double get_RHSu(Sim_data *data, int i, int j) {
     double *v_pre = data->v_pre;
     double *P = data->P;
 
-    double Hn  = get_a(u,     v,     M, N, h, i, j);
-    double Hnm = get_a(u_pre, v_pre, M, N, h, i, j);
+    double Hn  = get_a(u,     v,     M, N, h, i, j, v_mesh);
+    double Hnm = get_a(u_pre, v_pre, M, N, h, i, j, v_mesh);
     double gradP = get_gradu(P, M, N, h, i, j);
     double lapl = get_lapu(u, M, N, h, i, j);
 
     return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
 }
 
-double get_RHSv(Sim_data *data, int i, int j) {
+double get_RHSv(Sim_data *data, int i, int j, double v_mesh) {
     int M = data->M;
     int N = data->N;
     double h = data->h;
@@ -106,15 +124,15 @@ double get_RHSv(Sim_data *data, int i, int j) {
     double *v_pre = data->v_pre;
     double *P = data->P;
 
-    double Hn  = get_b(u,     v,     M, N, h, i, j);
-    double Hnm = get_b(u_pre, v_pre, M, N, h, i, j);
+    double Hn  = get_b(u,     v,     M, N, h, i, j, v_mesh);
+    double Hnm = get_b(u_pre, v_pre, M, N, h, i, j, v_mesh);
     double gradP = get_gradv(P, M, N, h, i, j);
     double lapl = get_lapv(v, M, N, h, i, j);
 
     return -1.0/2.0 * (3.0 * Hn - Hnm) - gradP + nu * lapl;
 }
 
-void compute_star(Sim_data *data) {
+void compute_star(Sim_data *data, double v_mesh) {
     int M = data->M;
     int N = data->N;
     double dt = data->dt;
@@ -126,13 +144,13 @@ void compute_star(Sim_data *data) {
 
     for (int i = 1; i < M; i++) { // Pour les u
         for (int j = 1; j < N+1; j++) {
-            u_star[i*(N+2) + j] = u[i*(N+2) + j] + dt * get_RHSu(data, i, j);
+            u_star[i*(N+2) + j] = u[i*(N+2) + j] + dt * get_RHSu(data, i, j, v_mesh);
         }
     }
 
     for (int i = 1; i < M+1; i++) { // Pour les v
         for (int j = 1; j < N; j++) {
-            v_star[i*(N+1) + j] = v[i*(N+1) + j] + dt * get_RHSv(data, i, j);
+            v_star[i*(N+1) + j] = v[i*(N+1) + j] + dt * get_RHSv(data, i, j, v_mesh);
         }
     }
 }
@@ -200,11 +218,13 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->N = N;
     data->M = M;
 
+    data->beta = 0.1;
+    data->fourier = 0.1;
     data->nu = 0.000001;
     data->H_box = 0.01;
     data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
-    data->dt = 4.0*data->nu/(9.0*data->U_inf*data->U_inf);//1.0/(4.0*res*res);
+    data->dt = data->h*data->beta/(4.0*data->U_inf);
     data->res = res;
 
     data->u      = calloc((N+2)*(M+1), sizeof(double)); // u_n+1

@@ -3,8 +3,8 @@
 
 int main(int argc, char *argv[]) {
 
-    int resolution = atoi(argv[1]);
-    double Re = (double) atoi(argv[2]);
+    int resolution = 50;
+    double Re = 500;
 
     // initialization of the program
     PetscInitialize(&argc, &argv, 0, 0);
@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     Poisson_data *pdata = malloc(sizeof(Poisson_data));
     initialize_poisson_solver(pdata, resolution, sdata->h, sdata->dt);
 
-    int nIt = (int) atoi(argv[3]) * sdata->H_box / sdata->U_inf / sdata->dt;
+    int nIt = (int) 50.0 * sdata->H_box / sdata->U_inf / sdata->dt;
 
     printf("dt = %f\n", sdata->dt);
     printf("h = %f\n", sdata->h);
@@ -31,11 +31,11 @@ int main(int argc, char *argv[]) {
     }
     set_boundary(sdata);
 
-    int nb_frames = 480;
+    int nb_frames = 20;
     int step = nIt / nb_frames;
     char *str = malloc(50*sizeof(char));
 
-    for (int i = 0; i < nIt; i++) {
+    for (int i = 0; i < nIt; i++) { // TODO: add v_mesh !!!
         compute_star(sdata);            // calcul u* à l'intérieur
         switch_n(sdata);                // met u_n dans u_n-1
         set_boundary(sdata);            // calcul u* sur la frontière et les points fantomes

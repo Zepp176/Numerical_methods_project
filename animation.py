@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.animation as animation
 
-nb_frames = 420
+nb_frames = 20
 
 fig = plt.figure(figsize=(14,5))
 camera = Camera(fig)
@@ -41,10 +41,10 @@ for i in range(nb_frames):
     plt.pcolormesh(x, y, velocity, cmap=cm.coolwarm, shading='auto', vmax=0.12, vmin=0)
     plt.fill([0.03, 0.08, 0.08, 0.03], [0.02, 0.02, 0.03, 0.03], c='k')
     plt.axis('equal')
-    plt.text(0.005, 0.045, '$t^* = {:.1f}$'.format(50.0*(i+1)/420.0))
+    #plt.text(0.005, 0.045, '$t^* = {:.1f}$'.format(50.0*(i+1)/420.0))
     plt.tight_layout()
 
     camera.snap()
 
 anim = camera.animate()
-anim.save('figures/animation.mp4', fps=24)
+anim.save('figures/animation.mp4', fps=3)
