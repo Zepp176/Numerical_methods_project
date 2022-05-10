@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import plotly.figure_factory as ff
 
-f = open("data/video/step_20.txt", "r")
+f = open("data/video/step_4.txt", "r")
 data = f.read().split("\n")
 res = data[0].split(" ")
 M = int(res[0])

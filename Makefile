@@ -8,7 +8,7 @@ CXX_FLAGS := -O0 -Wall #-g
 
 #Compilation
 all :
-	gcc -o project project.c poisson.c functions.c -lm -lmpi -O3 $(CXX_FLAGS) $(LIB_DIR) $(LIB) $(INC_DIR)
+	gcc -o project project.c poisson.c functions.c cases.c -lm -lmpi -O3 $(CXX_FLAGS) $(LIB_DIR) $(LIB) $(INC_DIR)
 
 run :
 	./project -ksp_type fgmres -pc_type lu
