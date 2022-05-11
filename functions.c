@@ -1,4 +1,5 @@
 #include <math.h>
+#include <time.h>
 #include "poisson.h"
 #include "functions.h"
 
@@ -86,8 +87,8 @@ double get_RHSu(Sim_data *data, int i, int j) {
     double *v_pre = data->v_pre;
     double *P = data->P;
 
-    double Hn  = get_a(u,     v,     M, N, h, i, j, data->u_mesh, data->v_mesh);
-    double Hnm = get_a(u_pre, v_pre, M, N, h, i, j, data->u_mesh, data->v_mesh);
+    double Hn  = get_a(u,     v,     M, N, h, i, j, data->u_mesh,      data->v_mesh     );
+    double Hnm = get_a(u_pre, v_pre, M, N, h, i, j, data->u_mesh_prev, data->v_mesh_prev);
     double gradP = get_gradu(P, M, N, h, i, j);
     double lapl = get_lapu(u, M, N, h, i, j);
 
@@ -106,8 +107,8 @@ double get_RHSv(Sim_data *data, int i, int j) {
     double *v_pre = data->v_pre;
     double *P = data->P;
 
-    double Hn  = get_b(u,     v,     M, N, h, i, j, data->u_mesh, data->v_mesh);
-    double Hnm = get_b(u_pre, v_pre, M, N, h, i, j, data->u_mesh, data->v_mesh);
+    double Hn  = get_b(u,     v,     M, N, h, i, j, data->u_mesh,      data->v_mesh     );
+    double Hnm = get_b(u_pre, v_pre, M, N, h, i, j, data->u_mesh_prev, data->v_mesh_prev);
     double gradP = get_gradv(P, M, N, h, i, j);
     double lapl = get_lapv(v, M, N, h, i, j);
 
@@ -164,13 +165,13 @@ void compute_next(Sim_data *data) {
     int res = data->res;
     for (int i = 1 + 3*res; i < 1 + 8*res; i++) {
         int j = 2*res;
-        v[i*(N+1) + j]     = 0.0; // down
-        v[i*(N+1) + j+res] = 0.0; // up
+        v[i*(N+1) + j]     = v_star[i*(N+1) + j]; // down
+        v[i*(N+1) + j+res] = v_star[i*(N+1) + j+res]; // up
     }
     for (int j = 1 + 2*res; j < 1 + 3*res; j++) {
         int i = 3*res;
-        u[i*(N+2) + j]         = 0.0; // left
-        u[(i+5*res)*(N+2) + j] = 0.0; // right
+        u[i*(N+2) + j]         = u_star[i*(N+2) + j]; // left
+        u[(i+5*res)*(N+2) + j] = u_star[(i+5*res)*(N+2) + j]; // right
     }
     for (int i = 3*res + 1; i < 8*res; i++) {
         int j = 3*res;
@@ -206,7 +207,7 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->H_box = 0.01;
     data->U_inf = Re*data->nu/data->H_box;
     data->h = data->H_box/res;
-    data->dt = data->h*data->beta/(4.0*data->U_inf);
+    data->dt = data->h*data->beta/(data->U_inf);
     data->res = res;
 
     data->u      = calloc((N+2)*(M+1), sizeof(double)); // u_n+1
@@ -220,6 +221,8 @@ void init_sim_data(Sim_data *data, int res, double Re) {
     data->t_star = 0.0;
     data->u_mesh = 0.0;
     data->v_mesh = 0.0;
+    data->u_mesh_prev = 0.0;
+    data->v_mesh_prev = 0.0;
     data->x_mesh = 0.0;
     data->y_mesh = 0.0;
     data->alpha = 0.5;
@@ -250,13 +253,13 @@ void write_fields(Sim_data *data, char *filename) {
     double *v = data->v;
     double *P = data->P;
 
-    fprintf(f, "%d %d %f %f %f %f %f\n", M, N, data->t_star, data->u_mesh, data->v_mesh, data->x_mesh, data->y_mesh);
+    fprintf(f, "%d %d %f %f %f %f %f\n", M, N, data->t_star, data->u_mesh/data->U_inf, data->v_mesh/data->U_inf, data->x_mesh, data->y_mesh);
     for (int i = 0; i < (N+2)*(M+1); i++) {
-        fprintf(f, "%f ", u[i]);
+        fprintf(f, "%f ", u[i]/data->U_inf);
     }
     fprintf(f, "\n");
     for (int i = 0; i < (N+1)*(M+2); i++) {
-        fprintf(f, "%f ", v[i]);
+        fprintf(f, "%f ", v[i]/data->U_inf);
     }
     fprintf(f, "\n");
     for (int i = 0; i < N*M; i++) {
@@ -281,7 +284,7 @@ void set_boundary(Sim_data *data) {
 
     // Left boundary
     for (int j = 1; j < N+1; j++) {
-        u_star[j] = u_c; // u = U_infinity
+        u_star[j] = data->U_inf; // u = U_infinity
         v_star[j] = -1.0/5.0 * (v[j + 3*(N+1)] - 5*v[j + 2*(N+1)] + 15*v[j + 1*(N+1)]); // ghost points : no tangential velocity
 
         u[j] = u_star[j];
@@ -313,7 +316,7 @@ void set_boundary(Sim_data *data) {
         u[idx] = u_star[idx];
     }
 
-    double vort_p; double vort_m; double RHS;
+    double vort_p, vort_m, RHS;
     for (int j = 1; j < N; j++) {
         idx = M*(N+2) + j;
         vort_p = u[idx] - u[idx+1];
@@ -331,33 +334,36 @@ void set_boundary(Sim_data *data) {
     }
 
     // Laterals of the box
+
+    // BOUNDARY POINTS
     for (int i = 1 + 3*res; i < 1 + 8*res; i++) {
         int j = 2*res;
         v_star[i*(N+1) + j]     = v_mesh; // down
         v_star[i*(N+1) + j+res] = v_mesh; // up
-    }
-    for (int i = 3*res + 1; i < 8*res; i++) {
-        int j = 3*res;
-
-        int idx = i*(N+2) + j;
-        u_star[idx] = -1.0/5.0 * (15*u[idx+1] - 5*u[idx+2] + u[idx+3] - 16*u_mesh);
-
-        idx = i*(N+2) + j-res+1;
-        u_star[idx] = -1.0/5.0 * (15*u[idx-1] - 5*u[idx-2] + u[idx-3] - 16*u_mesh);
     }
     for (int j = 1 + 2*res; j < 1 + 3*res; j++) {
         int i = 3*res;
         u_star[i*(N+2) + j]         = u_mesh; // left
         u_star[(i+5*res)*(N+2) + j] = u_mesh; // right
     }
+
+    // GHOST POINTS
+    for (int i = 3*res + 1; i < 8*res; i++) {
+        int j = 3*res;
+        int idx = i*(N+2) + j;
+        u_star[idx] = -1.0/5.0 * (15*u[idx+1] - 5*u[idx+2] + u[idx+3] - 16*u_mesh); // up
+
+        idx = i*(N+2) + j-res+1;
+        u_star[idx] = -1.0/5.0 * (15*u[idx-1] - 5*u[idx-2] + u[idx-3] - 16*u_mesh); // down
+    }
     for (int j = 2*res + 1; j < 3*res; j++) {
         int i = 3*res + 1;
         int idx = i*(N+1) + j;
-        v_star[idx] = -1.0/5.0 * (15*v[idx-(N+1)] - 5*v[idx-2*(N+1)] + v[idx-3*(N+1)] - 16*v_mesh);
+        v_star[idx] = -1.0/5.0 * (15*v[idx-(N+1)] - 5*v[idx-2*(N+1)] + v[idx-3*(N+1)] - 16*v_mesh); // left
 
         i = 8*res;
         idx = i*(N+1) + j;
-        v_star[idx] = -1.0/5.0 * (15*v[idx+(N+1)] - 5*v[idx+2*(N+1)] + v[idx+3*(N+1)] - 16*v_mesh);
+        v_star[idx] = -1.0/5.0 * (15*v[idx+(N+1)] - 5*v[idx+2*(N+1)] + v[idx+3*(N+1)] - 16*v_mesh); // right
     }
 }
 
@@ -410,4 +416,12 @@ void mass_flow_condition(Sim_data *data) {
     for (int j = 1; j < N+1; j++) {
         data->u_star[M*(N+2) + j] += (sum_i - sum_o)/N;
     }
+}
+
+double time_remaining(int i, int nb_it, clock_t *t_old) {
+    clock_t t_new = clock();
+    double dt = ((double) (t_new - *t_old)) / CLOCKS_PER_SEC;
+    *t_old = t_new;
+
+    return (nb_it - i)/100.0 * dt;
 }

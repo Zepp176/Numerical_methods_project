@@ -14,6 +14,8 @@ typedef struct {
     double t_star;
     double u_mesh;
     double v_mesh;
+    double u_mesh_prev;
+    double v_mesh_prev;
     double x_mesh;
     double y_mesh;
     double alpha;
@@ -51,5 +53,6 @@ void switch_n(Sim_data *data);
 double divergence(Sim_data *data, int i, int j);
 void update_pressure(Sim_data *data);
 void mass_flow_condition(Sim_data *data);
+double time_remaining(int i, int nb_it, clock_t *t_old);
 
 #endif

@@ -4,9 +4,10 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.animation as animation
 
-nb_frames = 400
-filename = 'animation_test'
-folder = 'video_test'
+nb_frames = 800
+filename = 'case2'
+folder = 'case2'
+nb_fps = 24
 
 fig = plt.figure(figsize=(14,5))
 camera = Camera(fig)
@@ -35,21 +36,23 @@ for i in range(nb_frames):
         v[j] = float(v[j])
 
     x = np.linspace(0, 15, M+1) + x_mesh
-    y = np.linspace(0,  5, N+1)
+    y = np.linspace(0,  5, N+1) + y_mesh
     x, y = np.meshgrid(x, y)
 
     u = np.array(u).reshape(M+1, N+2).T + u_mesh
-    v = np.array(v).reshape(M+2, N+1).T
+    v = np.array(v).reshape(M+2, N+1).T + v_mesh
 
     velocity = np.sqrt( ( (u[1:-1,1:] + u[1:-1,:-1])/2 )**2
                       + ( (v[1:,1:-1] + v[:-1,1:-1])/2 )**2 )
 
-    plt.pcolormesh(x, y, velocity, cmap=cm.coolwarm, shading='auto', vmax=0.12, vmin=0)
-    plt.fill(np.array([3, 8, 8, 3]) + x_mesh, np.array([2, 2, 3, 3]), c='k')
+    vorticity = (-u[1:,:] + u[:-1,:] - v[:,:-1] + v[:,1:])*N/5.0
+
+    plt.pcolormesh(x, y, vorticity, cmap=cm.coolwarm, shading='auto', vmin=-10, vmax=10)
+    plt.fill(np.array([3, 8, 8, 3]) + x_mesh, np.array([2, 2, 3, 3]) + y_mesh, c='k')
     plt.axis('equal')
     plt.tight_layout()
 
     camera.snap()
 
 anim = camera.animate()
-anim.save('figures/{}.mp4'.format(filename), fps=24)
+anim.save('figures/{}.mp4'.format(filename), fps=nb_fps)
