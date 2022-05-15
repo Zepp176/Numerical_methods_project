@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import plotly.figure_factory as ff
 
 f = open("data/video/step_4.txt", "r")
 data = f.read().split("\n")

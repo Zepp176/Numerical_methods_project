@@ -2,9 +2,8 @@ from matplotlib import pyplot as plt
 from celluloid import Camera
 import numpy as np
 import matplotlib.cm as cm
-import matplotlib.animation as animation
 
-nb_frames = 800
+nb_frames = 10
 filename = 'case2'
 folder = 'case2'
 nb_fps = 24
@@ -14,8 +13,7 @@ camera = Camera(fig)
 
 for i in range(nb_frames):
     print("step {}/{}".format(i, nb_frames))
-
-    f = open("data/{}/step_{}.txt".format(folder, i+1), "r")
+    f = open("D:/Numerical_Methods_data/{}/step_{}.txt".format(folder, i+1), "r")
     data = f.read().split("\n")
     f.close()
 
@@ -55,4 +53,4 @@ for i in range(nb_frames):
     camera.snap()
 
 anim = camera.animate()
-anim.save('figures/{}.mp4'.format(filename), fps=nb_fps)
+anim.save('figures\{}.mp4'.format(filename), fps=nb_fps)
